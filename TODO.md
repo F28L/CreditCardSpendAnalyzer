@@ -37,13 +37,13 @@
 ## Phase 2: LLM Integration
 
 ### LLM Service Layer
-- [ ] Create abstract BaseLLMProvider class
-- [ ] Implement OllamaProvider with generate_insight and categorize_transaction methods
-- [ ] Implement OpenAIProvider with generate_insight and categorize_transaction methods
-- [ ] Create LLM factory to instantiate correct provider based on config
-- [ ] Add LLM provider configuration to settings
-- [ ] Write unit tests for LLM providers (with mocking)
-- [ ] Add error handling for LLM API failures
+- [x] Create abstract BaseLLMProvider class
+- [x] Implement OllamaProvider with generate_insight and categorize_transaction methods
+- [x] Implement OpenAIProvider with generate_insight and categorize_transaction methods
+- [x] Create LLM factory to instantiate correct provider based on config
+- [x] Add LLM provider configuration to settings
+- [x] Write unit tests for LLM providers (with mocking)
+- [x] Add error handling for LLM API failures
 
 ---
 
