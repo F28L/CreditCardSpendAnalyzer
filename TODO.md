@@ -92,10 +92,11 @@
 ## Phase 5: Analytics & Data Visualization
 
 ### Backend Analytics Endpoints
-- [ ] Implement GET /api/analytics/spending-by-card endpoint
-- [ ] Implement GET /api/analytics/spending-over-time endpoint with granularity
-- [ ] Implement GET /api/analytics/categories endpoint for category breakdown
-- [ ] Implement GET /api/analytics/reimbursements endpoint
+- [x] Implement GET /api/analytics/spending-by-card endpoint
+- [x] Implement GET /api/analytics/spending-over-time endpoint with granularity
+- [x] Implement GET /api/analytics/categories endpoint for category breakdown
+- [x] Implement GET /api/analytics/reimbursements endpoint
+- [x] Add spending summary endpoint with key metrics
 - [ ] Add caching layer for expensive aggregations
 - [ ] Write unit tests for analytics endpoints
 
@@ -113,12 +114,13 @@
 ## Phase 6: AI-Powered Insights
 
 ### AI Analysis Backend
-- [ ] Implement POST /api/ai/analyze endpoint
-- [ ] Create prompt templates for spending analysis
-- [ ] Add transaction-to-text formatting for LLM input
-- [ ] Implement GET /api/ai/insights endpoint to retrieve cached insights
-- [ ] Add background job for periodic insight generation
-- [ ] Store insights in ai_insights table with metadata
+- [x] Implement POST /api/ai/analyze endpoint
+- [x] Create prompt templates for spending analysis
+- [x] Add transaction-to-text formatting for LLM input
+- [x] Implement GET /api/ai/insights endpoint to retrieve cached insights
+- [x] Add background job for bulk transaction categorization
+- [x] Store insights in ai_insights table with metadata
+- [x] Add /api/ai/categorize-transaction endpoint for single transactions
 - [ ] Write unit tests for AI analysis logic
 
 ### AI Insights Frontend

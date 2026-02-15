@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from config import settings
 from database import init_db
-from api.routes import plaid
+from api.routes import plaid, ai, analytics
 import logging
 
 # Configure logging
@@ -42,6 +42,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(plaid.router)
+app.include_router(ai.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")
