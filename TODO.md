@@ -10,14 +10,14 @@
 ## Phase 1: Foundation & Setup
 
 ### Backend Setup
-- [ ] Create backend directory structure (api/, services/, models/, config/)
-- [ ] Set up Python virtual environment and requirements.txt
-- [ ] Create .env.example with all required environment variables
-- [ ] Implement database models using SQLAlchemy (Account, Transaction, AIInsight, PlaidItem)
-- [ ] Set up FastAPI application with basic configuration
-- [ ] Add database initialization and migration setup with Alembic
-- [ ] Create Pydantic models for request/response validation
-- [ ] Write unit tests for database models
+- [x] Create backend directory structure (api/, services/, models/, config/)
+- [x] Set up Python virtual environment and requirements.txt
+- [x] Create .env.example with all required environment variables
+- [x] Implement database models using SQLAlchemy (Account, Transaction, AIInsight, PlaidItem)
+- [x] Set up FastAPI application with basic configuration
+- [x] Add database initialization and migration setup with Alembic
+- [x] Create Pydantic models for request/response validation
+- [x] Write unit tests for database models
 
 ### Frontend Setup
 - [ ] Create frontend directory with Vite + React + TypeScript
