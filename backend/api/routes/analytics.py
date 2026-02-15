@@ -11,6 +11,8 @@ import logging
 from database import get_db
 from models.transaction import Transaction
 from models.account import Account
+from models.user import User
+from api.routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -60,20 +62,23 @@ async def get_spending_by_card(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get spending aggregated by credit card/account.
+    Get spending aggregated by credit card/account for the current user.
     Optionally filter by date range.
     """
     try:
-        # Build query
+        # Build query with user filter via Account join
         query = (
             select(
                 Transaction.account_id,
                 func.sum(Transaction.amount).label("total_spent"),
                 func.count(Transaction.id).label("transaction_count"),
             )
+            .join(Account, Transaction.account_id == Account.id)
             .where(Transaction.account_id != None)
+            .where(Account.user_id == current_user.id)
             .group_by(Transaction.account_id)
         )
 
@@ -90,8 +95,10 @@ async def get_spending_by_card(
         result = await db.execute(query)
         spending_data = result.all()
 
-        # Get account details
-        account_result = await db.execute(select(Account))
+        # Get account details (filter by user_id)
+        account_result = await db.execute(
+            select(Account).where(Account.user_id == current_user.id)
+        )
         accounts = {acc.id: acc for acc in account_result.scalars()}
 
         # Format response
@@ -123,14 +130,15 @@ async def get_spending_over_time(
     end_date: Optional[str] = Query(None),
     account_ids: Optional[str] = Query(None),  # Comma-separated
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get spending over time with configurable granularity.
+    Get spending over time with configurable granularity for the current user.
     Returns aggregated data by day, week, or month.
     """
     try:
-        # Build query
-        query = select(Transaction)
+        # Build query with user filter via Account join
+        query = select(Transaction).join(Account, Transaction.account_id == Account.id).where(Account.user_id == current_user.id)
 
         # Apply filters
         if start_date:
@@ -187,23 +195,26 @@ async def get_category_breakdown(
     end_date: Optional[str] = Query(None),
     use_ai_category: bool = Query(False),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get spending breakdown by category.
+    Get spending breakdown by category for the current user.
     Can use either Plaid categories or AI-generated categories.
     """
     try:
         # Determine which category field to use
         category_field = Transaction.ai_category if use_ai_category else Transaction.category
 
-        # Build query
+        # Build query with user filter via Account join
         query = (
             select(
                 category_field.label("category"),
                 func.sum(Transaction.amount).label("amount"),
                 func.count(Transaction.id).label("count"),
             )
+            .join(Account, Transaction.account_id == Account.id)
             .where(category_field != None)
+            .where(Account.user_id == current_user.id)
             .group_by(category_field)
         )
 
@@ -251,14 +262,20 @@ async def get_reimbursements(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get transactions marked as reimbursements.
+    Get transactions marked as reimbursements for the current user.
     Includes both manually marked and AI-detected reimbursements.
     """
     try:
-        # Build query
-        query = select(Transaction).where(Transaction.is_reimbursement == True)
+        # Build query with user filter via Account join
+        query = (
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(Transaction.is_reimbursement == True)
+            .where(Account.user_id == current_user.id)
+        )
 
         # Apply date filters
         if start_date:
@@ -297,13 +314,18 @@ async def get_spending_summary(
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Get overall spending summary with key metrics.
+    Get overall spending summary with key metrics for the current user.
     """
     try:
-        # Build base query
-        query = select(Transaction)
+        # Build base query with user filter via Account join
+        query = (
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(Account.user_id == current_user.id)
+        )
 
         # Apply date filters
         if start_date:

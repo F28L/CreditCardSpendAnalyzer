@@ -12,6 +12,8 @@ from services.plaid_service import PlaidService
 from models.plaid_item import PlaidItem
 from models.account import Account
 from models.transaction import Transaction
+from models.user import User
+from api.routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -55,11 +57,11 @@ class SyncTransactionsResponse(BaseModel):
 
 
 @router.post("/create-link-token", response_model=LinkTokenResponse)
-async def create_link_token():
+async def create_link_token(current_user: User = Depends(get_current_user)):
     """Create a Plaid Link token for account connection."""
     try:
         plaid_service = PlaidService()
-        link_token = await plaid_service.create_link_token()
+        link_token = await plaid_service.create_link_token(user_id=current_user.id)
         return LinkTokenResponse(link_token=link_token)
     except Exception as e:
         logger.error(f"Error creating link token: {e}")
@@ -71,6 +73,7 @@ async def exchange_public_token(
     request: ExchangeTokenRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Exchange public token for access token and fetch accounts.
@@ -86,6 +89,7 @@ async def exchange_public_token(
 
         # Save Plaid item
         plaid_item = PlaidItem(
+            user_id=current_user.id,
             access_token=access_token,
             item_id=item_id,
             institution_id=await plaid_service.get_institution_name(access_token),
@@ -99,6 +103,7 @@ async def exchange_public_token(
         # Save accounts
         for acc_data in accounts_data:
             account = Account(
+                user_id=current_user.id,
                 plaid_account_id=acc_data["plaid_account_id"],
                 account_name=acc_data["account_name"],
                 account_type=acc_data["account_type"],
@@ -111,7 +116,7 @@ async def exchange_public_token(
 
         # Schedule background sync for 24 months
         background_tasks.add_task(
-            sync_transactions_background, item_id, None, None, db
+            sync_transactions_background, item_id, current_user.id, None, None, db
         )
 
         return ExchangeTokenResponse(
@@ -128,15 +133,19 @@ async def sync_transactions(
     request: SyncTransactionsRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Manually trigger transaction sync for a specific item.
     Supports custom date ranges or defaults to 24 months.
     """
     try:
-        # Get Plaid item
+        # Get Plaid item (filter by user_id)
         result = await db.execute(
-            select(PlaidItem).where(PlaidItem.item_id == request.item_id)
+            select(PlaidItem).where(
+                PlaidItem.item_id == request.item_id,
+                PlaidItem.user_id == current_user.id,
+            )
         )
         plaid_item = result.scalar_one_or_none()
 
@@ -155,6 +164,7 @@ async def sync_transactions(
         background_tasks.add_task(
             sync_transactions_background,
             request.item_id,
+            current_user.id,
             start_date,
             end_date,
             db,
@@ -175,15 +185,18 @@ async def sync_transactions(
 
 async def sync_transactions_background(
     item_id: str,
+    user_id: str,
     start_date: Optional[datetime],
     end_date: Optional[datetime],
     db: AsyncSession,
 ):
     """Background task to sync transactions."""
     try:
-        # Get Plaid item
+        # Get Plaid item (filter by user_id)
         result = await db.execute(
-            select(PlaidItem).where(PlaidItem.item_id == item_id)
+            select(PlaidItem).where(
+                PlaidItem.item_id == item_id, PlaidItem.user_id == user_id
+            )
         )
         plaid_item = result.scalar_one()
 
@@ -196,8 +209,8 @@ async def sync_transactions_background(
             end_date=end_date,
         )
 
-        # Get account mappings
-        result = await db.execute(select(Account))
+        # Get account mappings (filter by user_id)
+        result = await db.execute(select(Account).where(Account.user_id == user_id))
         accounts = {acc.plaid_account_id: acc.id for acc in result.scalars()}
 
         # Save transactions with deduplication
@@ -226,10 +239,10 @@ async def sync_transactions_background(
             db.add(transaction)
             new_count += 1
 
-        # Update last_sync_timestamp for all accounts
+        # Update last_sync_timestamp for all accounts (filter by user_id)
         for account_id in accounts.values():
             result = await db.execute(
-                select(Account).where(Account.id == account_id)
+                select(Account).where(Account.id == account_id, Account.user_id == user_id)
             )
             account = result.scalar_one()
             account.last_sync_timestamp = datetime.now()
@@ -243,9 +256,11 @@ async def sync_transactions_background(
 
 
 @router.get("/accounts")
-async def get_connected_accounts(db: AsyncSession = Depends(get_db)):
-    """Get all connected accounts."""
-    result = await db.execute(select(Account))
+async def get_connected_accounts(
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    """Get all connected accounts for the current user."""
+    result = await db.execute(select(Account).where(Account.user_id == current_user.id))
     accounts = result.scalars().all()
 
     return [

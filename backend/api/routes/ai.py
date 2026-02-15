@@ -11,7 +11,10 @@ from database import get_db
 from services.llm.factory import get_llm_provider
 from models.transaction import Transaction
 from models.ai_insight import AIInsight
+from models.account import Account
+from models.user import User
 from schemas.ai_insight import AIInsightRead
+from api.routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +43,10 @@ async def analyze_spending(
     request: AnalyzeRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Trigger AI analysis on transactions.
+    Trigger AI analysis on transactions for the current user.
     Generates insights about spending patterns, categories, and anomalies.
     """
     try:
@@ -58,8 +62,12 @@ async def analyze_spending(
             else None
         )
 
-        # Build query
-        query = select(Transaction)
+        # Build query with user filter via Account join
+        query = (
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(Account.user_id == current_user.id)
+        )
 
         if start_date:
             query = query.where(Transaction.date >= start_date)
@@ -112,6 +120,7 @@ async def analyze_spending(
             llm.model if hasattr(llm, "model") else llm.__class__.__name__
         )
         ai_insight = AIInsight(
+            user_id=current_user.id,
             insight_type=request.insight_type,
             date_range_start=start_date,
             date_range_end=end_date,
@@ -140,13 +149,19 @@ async def get_insights(
     limit: int = 10,
     insight_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Retrieve stored AI insights.
+    Retrieve stored AI insights for the current user.
     Optionally filter by insight type.
     """
     try:
-        query = select(AIInsight).order_by(AIInsight.created_at.desc()).limit(limit)
+        query = (
+            select(AIInsight)
+            .where(AIInsight.user_id == current_user.id)
+            .order_by(AIInsight.created_at.desc())
+            .limit(limit)
+        )
 
         if insight_type:
             query = query.where(AIInsight.insight_type == insight_type)
@@ -165,15 +180,19 @@ async def get_insights(
 async def categorize_transaction(
     transaction_id: str,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Use AI to categorize a specific transaction.
+    Use AI to categorize a specific transaction for the current user.
     Updates the ai_category field.
     """
     try:
-        # Get transaction
+        # Get transaction (ensure it belongs to current user via Account join)
         result = await db.execute(
-            select(Transaction).where(Transaction.id == transaction_id)
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(Transaction.id == transaction_id)
+            .where(Account.user_id == current_user.id)
         )
         transaction = result.scalar_one_or_none()
 
@@ -209,16 +228,19 @@ async def bulk_categorize_transactions(
     background_tasks: BackgroundTasks,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Trigger bulk AI categorization for uncategorized transactions.
+    Trigger bulk AI categorization for uncategorized transactions for the current user.
     Runs in background to avoid timeout.
     """
     try:
-        # Get uncategorized transactions
+        # Get uncategorized transactions (filter by user_id via Account join)
         result = await db.execute(
             select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
             .where(Transaction.ai_category == None)
+            .where(Account.user_id == current_user.id)
             .limit(limit)
         )
         transactions = result.scalars().all()
@@ -228,7 +250,7 @@ async def bulk_categorize_transactions(
 
         # Run in background
         background_tasks.add_task(
-            categorize_transactions_background, [txn.id for txn in transactions], db
+            categorize_transactions_background, [txn.id for txn in transactions], current_user.id, db
         )
 
         return {
@@ -243,6 +265,7 @@ async def bulk_categorize_transactions(
 
 async def categorize_transactions_background(
     transaction_ids: List[str],
+    user_id: str,
     db: AsyncSession,
 ):
     """Background task to categorize transactions."""
@@ -251,7 +274,10 @@ async def categorize_transactions_background(
 
         for txn_id in transaction_ids:
             result = await db.execute(
-                select(Transaction).where(Transaction.id == txn_id)
+                select(Transaction)
+                .join(Account, Transaction.account_id == Account.id)
+                .where(Transaction.id == txn_id)
+                .where(Account.user_id == user_id)
             )
             transaction = result.scalar_one_or_none()
 

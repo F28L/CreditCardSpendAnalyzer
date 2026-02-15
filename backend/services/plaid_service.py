@@ -101,10 +101,17 @@ class PlaidService:
 
             accounts = []
             for account in response["accounts"]:
+                # Convert account type enum to string
+                account_type = account["type"]
+                if hasattr(account_type, 'value'):
+                    account_type = account_type.value
+                else:
+                    account_type = str(account_type)
+
                 accounts.append({
                     "plaid_account_id": account["account_id"],
                     "account_name": account["name"],
-                    "account_type": account["type"],
+                    "account_type": account_type,
                     "account_subtype": account.get("subtype"),
                     "mask": account.get("mask"),
                     "official_name": account.get("official_name"),

@@ -1,5 +1,5 @@
 """Account model for financial accounts."""
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 import uuid
 from .base import Base, TimestampMixin
@@ -11,6 +11,7 @@ class Account(Base, TimestampMixin):
     __tablename__ = "accounts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     plaid_account_id = Column(String(255), unique=True, nullable=False, index=True)
     account_name = Column(String(255), nullable=False)
     account_type = Column(String(50))  # 'credit', 'checking', 'savings'
@@ -19,6 +20,7 @@ class Account(Base, TimestampMixin):
     last_sync_timestamp = Column(DateTime, nullable=True)
 
     # Relationships
+    user = relationship("User", back_populates="accounts")
     transactions = relationship(
         "Transaction", back_populates="account", cascade="all, delete-orphan"
     )
