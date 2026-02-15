@@ -50,16 +50,16 @@
 ## Phase 3: Plaid Integration
 
 ### Plaid Service
-- [ ] Install plaid-python SDK
-- [ ] Create PlaidService class for API interactions
-- [ ] Implement create_link_token endpoint
-- [ ] Implement exchange_public_token endpoint
-- [ ] Implement get_accounts endpoint to fetch account details
-- [ ] Implement sync_transactions with 24-month date range and pagination
-- [ ] Add incremental sync logic using last_sync_timestamp
-- [ ] Implement transaction deduplication logic
-- [ ] Add background task support for long-running syncs
-- [ ] Write unit tests for Plaid service (with mocked API)
+- [x] Install plaid-python SDK
+- [x] Create PlaidService class for API interactions
+- [x] Implement create_link_token endpoint
+- [x] Implement exchange_public_token endpoint
+- [x] Implement get_accounts endpoint to fetch account details
+- [x] Implement sync_transactions with 24-month date range and pagination
+- [x] Add incremental sync logic using last_sync_timestamp
+- [x] Implement transaction deduplication logic
+- [x] Add background task support for long-running syncs
+- [x] Write unit tests for Plaid service (with mocked API)
 
 ### Plaid Frontend
 - [ ] Install react-plaid-link library
